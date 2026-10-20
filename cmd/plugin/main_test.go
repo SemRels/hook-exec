@@ -63,8 +63,24 @@ func TestRunDryRunSkipsExecution(t *testing.T) {
 	}))
 
 	require.Equal(t, 0, code)
-	require.Empty(t, stdout.String())
-	require.Contains(t, stderr.String(), "dry-run: skipped configured command")
+	require.Equal(t, "[dry-run] phase=configured command=exit 99\n", stdout.String())
+	require.Equal(t, "plugin_schema_version=1\n[dry-run] hook-exec: would execute configured command: exit 99\n", stderr.String())
+}
+
+func TestRunDryRunWithoutCommandConfigured(t *testing.T) {
+	t.Parallel()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := run(&stdout, &stderr, envMap(map[string]string{
+		"SEMREL_VERSION": "v1.2.3",
+		"SEMREL_DRY_RUN": "true",
+	}))
+
+	require.Equal(t, 0, code)
+	require.Equal(t, "[dry-run] phase=<unset> command=<unset>\n", stdout.String())
+	require.Contains(t, stderr.String(), "plugin_schema_version=1\n")
+	require.Contains(t, stderr.String(), "[dry-run] hook-exec: would need SEMREL_PLUGIN_CMD or a supported lifecycle command to execute")
 }
 
 func TestRunPropagatesFailure(t *testing.T) {
