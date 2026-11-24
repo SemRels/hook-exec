@@ -4,6 +4,7 @@
   "title": "hook-exec plugin configuration",
   "description": "Schema v1 for the hook-exec semrel plugin.",
   "type": "object",
+  "x-semrel-dry-run": true,
   "properties": {
     "SEMREL_PLUGIN_CMD": {
       "type": "string",

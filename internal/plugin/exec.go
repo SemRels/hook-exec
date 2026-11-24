@@ -72,19 +72,26 @@ func ParseEnvironment(raw string) (map[string]string, error) {
 func Execute(parent context.Context, cfg Config, stdout, stderr io.Writer) error {
 	commands, phase, err := selectCommands(cfg)
 	if err != nil {
+		if cfg.DryRun && !cfg.RunInDryRun && err.Error() == "SEMREL_PLUGIN_CMD or a supported lifecycle command is required" {
+			_, _ = fmt.Fprintln(stderr, "[dry-run] hook-exec: would need SEMREL_PLUGIN_CMD or a supported lifecycle command to execute")
+			_, _ = fmt.Fprintln(stdout, "[dry-run] phase=<unset> command=<unset>")
+			return nil
+		}
 		return err
 	}
 	if cfg.DryRun && !cfg.RunInDryRun {
-		for _, command := range commands {
-			_, _ = fmt.Fprintf(stderr, "hook-exec: dry-run: skipped %s command: %s\n", phase, command)
+		switch phase {
+		case "configured", "condition", "generator", "pre-tag", "release":
+		default:
+			phase = "<other>"
+		}
+		for range commands {
+			_, _ = fmt.Fprintf(stderr, "[dry-run] hook-exec: would execute %s command (contents redacted)\n", phase)
+			_, _ = fmt.Fprintf(stdout, "[dry-run] phase=%s command=<redacted>\n", phase)
 		}
 		return nil
 	}
 
-	timeout := cfg.Timeout
-	if timeout <= 0 {
-		timeout = 5 * time.Minute
-	}
 	shell := cfg.Shell
 	if shell == "" {
 		if runtime.GOOS == "windows" {
@@ -92,6 +99,11 @@ func Execute(parent context.Context, cfg Config, stdout, stderr io.Writer) error
 		} else {
 			shell = "sh"
 		}
+	}
+
+	timeout := cfg.Timeout
+	if timeout <= 0 {
+		timeout = 5 * time.Minute
 	}
 
 	for _, rawCommand := range commands {

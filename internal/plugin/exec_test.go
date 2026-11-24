@@ -122,6 +122,21 @@ func TestExecuteRunsDuringDryRunWhenEnabled(t *testing.T) {
 	require.Equal(t, "ran", stdout.String())
 }
 
+func TestExecuteDryRunReportsEachLifecycleCommandWithoutContents(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+	err := Execute(context.Background(), Config{
+		Phase:      "release",
+		PublishCmd: "publish private-token",
+		SuccessCmd: "notify private-token",
+		DryRun:     true,
+	}, &stdout, &stderr)
+	require.NoError(t, err)
+	require.Equal(t, "[dry-run] phase=release command=<redacted>\n[dry-run] phase=release command=<redacted>\n", stdout.String())
+	require.NotContains(t, stderr.String(), "private-token")
+}
+
 func TestParseEnvironment(t *testing.T) {
 	t.Parallel()
 
