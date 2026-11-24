@@ -70,15 +70,6 @@ func ParseEnvironment(raw string) (map[string]string, error) {
 }
 
 func Execute(parent context.Context, cfg Config, stdout, stderr io.Writer) error {
-	shell := cfg.Shell
-	if shell == "" {
-		if runtime.GOOS == "windows" {
-			shell = "cmd"
-		} else {
-			shell = "sh"
-		}
-	}
-
 	commands, phase, err := selectCommands(cfg)
 	if err != nil {
 		if cfg.DryRun && !cfg.RunInDryRun && err.Error() == "SEMREL_PLUGIN_CMD or a supported lifecycle command is required" {
@@ -89,12 +80,25 @@ func Execute(parent context.Context, cfg Config, stdout, stderr io.Writer) error
 		return err
 	}
 	if cfg.DryRun && !cfg.RunInDryRun {
-		for _, rawCommand := range commands {
-			command := expandTemplate(rawCommand, cfg.Template, shell)
-			_, _ = fmt.Fprintf(stderr, "[dry-run] hook-exec: would execute %s command: %s\n", phase, command)
-			_, _ = fmt.Fprintf(stdout, "[dry-run] phase=%s command=%s\n", phase, command)
+		switch phase {
+		case "configured", "condition", "generator", "pre-tag", "release":
+		default:
+			phase = "<other>"
+		}
+		for range commands {
+			_, _ = fmt.Fprintf(stderr, "[dry-run] hook-exec: would execute %s command (contents redacted)\n", phase)
+			_, _ = fmt.Fprintf(stdout, "[dry-run] phase=%s command=<redacted>\n", phase)
 		}
 		return nil
+	}
+
+	shell := cfg.Shell
+	if shell == "" {
+		if runtime.GOOS == "windows" {
+			shell = "cmd"
+		} else {
+			shell = "sh"
+		}
 	}
 
 	timeout := cfg.Timeout

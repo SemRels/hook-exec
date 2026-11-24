@@ -63,8 +63,24 @@ func TestRunDryRunSkipsExecution(t *testing.T) {
 	}))
 
 	require.Equal(t, 0, code)
-	require.Equal(t, "[dry-run] phase=configured command=exit 99\n", stdout.String())
-	require.Equal(t, "plugin_schema_version=1\n[dry-run] hook-exec: would execute configured command: exit 99\n", stderr.String())
+	require.Equal(t, "[dry-run] phase=configured command=<redacted>\n", stdout.String())
+	require.Equal(t, "plugin_schema_version=1\n[dry-run] hook-exec: would execute configured command (contents redacted)\n", stderr.String())
+}
+
+func TestRunDryRunRedactsCommandAndTemplateValues(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+	code := run(&stdout, &stderr, envMap(map[string]string{
+		"SEMREL_PLUGIN_CMD":   `curl -H "Authorization: Bearer private-token" ${nextRelease.version}`,
+		"SEMREL_PLUGIN_PHASE": "private-phase",
+		"SEMREL_VERSION":      "private-version",
+		"SEMREL_DRY_RUN":      "true",
+	}))
+
+	require.Equal(t, 0, code)
+	require.Equal(t, "[dry-run] phase=<other> command=<redacted>\n", stdout.String())
+	require.NotContains(t, stdout.String()+stderr.String(), "private-")
 }
 
 func TestRunDryRunWithoutCommandConfigured(t *testing.T) {
